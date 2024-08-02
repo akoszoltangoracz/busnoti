@@ -1,0 +1,84 @@
+@page "/blacklist"
+@rendermode InteractiveServer
+@using BusNoti.Models
+@using BusNoti.Handlers
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<BusNoti.Contexts.ChannelContext> channelContext
+@inject BlacklistHandler blacklistHandler
+
+<RadzenText TextStyle="TextStyle.H1">Blacklisted subjects</RadzenText>
+
+@foreach (var blacklist in blacklists) {
+    <RadzenCard>
+        <RadzenRow>
+            <RadzenColumn Size="10">
+                <RadzenText Style="TextStyle.H5">@blacklist.Topic</RadzenText>
+            </RadzenColumn>
+            <RadzenColumn Size="2">
+                <RadzenButton
+                    Icon="trash"
+                    Click=@(() => DeleteBlacklist(blacklist))
+                >Delete</RadzenButton>
+            </RadzenColumn>
+        </RadzenRow>
+    </RadzenCard>
+}
+
+<RadzenPanel>
+    <RadzenRow>
+        <RadzenColumn Size="10">
+            <RadzenText>Subject</RadzenText>
+            <RadzenTextBox @bind-Value="Model.Topic" />
+        </RadzenColumn>
+        <RadzenColumn Size="2">
+            <RadzenButton Click="AddToBlacklist">Add to Blacklist</RadzenButton>
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenPanel>
+
+@code {
+    public class BlacklistFormModel
+    {
+        public string Topic { get; set; } = string.Empty;
+    }
+
+    public BlacklistFormModel Model = new();
+    public List<Blacklist> blacklists = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBlacklistsAsync();
+    }
+
+    protected async Task LoadBlacklistsAsync()
+    {
+        using var context = await channelContext.CreateDbContextAsync();
+        blacklists = await (from blacklist in context.Blacklists select blacklist).ToListAsync();
+    }
+
+    private async Task AddToBlacklist()
+    {
+        using var context = await channelContext.CreateDbContextAsync();
+        Console.WriteLine($"new subject {Model.Topic}");
+        var blacklist = new Blacklist(){
+            Topic = Model.Topic,
+        };
+
+        context.Add(blacklist);
+        await context.SaveChangesAsync();
+        await blacklistHandler.NotifyBlacklistAsync($"added {Model.Topic}");
+        await LoadBlacklistsAsync();
+        Model.Topic = "";
+    }
+
+    private async Task DeleteBlacklist(Blacklist blacklist)
+    {
+        Console.WriteLine($"Deleting {blacklist.Id}");
+        using var context = await channelContext.CreateDbContextAsync();
+
+        context.Remove(blacklist);
+        await context.SaveChangesAsync();
+        await blacklistHandler.NotifyBlacklistAsync($"deleted {blacklist.Topic}");
+        await LoadBlacklistsAsync();
+    }
+}

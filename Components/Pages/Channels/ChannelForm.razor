@@ -1,0 +1,50 @@
+@page "/channels/new"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<BusNoti.Contexts.ChannelContext> channelContext
+@using BusNoti.Models
+@inject NavigationManager navigationManager
+
+<h1>New channel</h1>
+    <div class="form-check">
+        <RadzenText>Name</RadzenText>
+        <RadzenTextBox @bind-Value="Model.Name" />
+    </div>
+
+    <div class="form-check">
+        <RadzenText>Types (separated by spaces)</RadzenText>
+        <RadzenTextBox @bind-Value="Model.TypesString" />
+    </div>
+
+    <RadzenButton Click="CreateChannel">New Channel</RadzenButton>
+
+@code {
+    private class NewChannelModel {
+        public string Name { get; set; } = string.Empty;
+        public string TypesString { get; set; } = string.Empty;
+        public List<string> Types {
+            get {
+                var arr = TypesString.Split(" ");
+
+                return new List<string>();
+            }
+            set {
+                TypesString = string.Join(' ', value);
+            }
+        }
+    }
+
+    private NewChannelModel Model = new();
+
+    private async Task CreateChannel()
+    {
+        using var context = await channelContext.CreateDbContextAsync();
+        var channel = new Channel(){
+            Name = Model.Name,
+            Types = Model.Types,
+        };
+        context.Add(channel);
+        await context.SaveChangesAsync();
+        navigationManager.NavigateTo("/channels");
+    }
+}

@@ -1,0 +1,49 @@
+@rendermode InteractiveServer
+@implements IDisposable
+
+@using BusNoti.Models
+@using BusNoti.State
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<BusNoti.Contexts.ChannelContext> channelContext
+@inject AppState appState
+
+<RadzenPanelMenu>
+    @foreach(var channel in channels) {
+        <RadzenPanelMenuItem
+            Text="@channel.Name"
+            Icon="bookmark"
+            Path="@($"/messages/{channel.Id}")"
+        />
+    }
+    <RadzenPanelMenuItem
+        Text="Channels"
+        Icon="note_add"
+        Path="/channels"
+    />
+    <RadzenPanelMenuItem
+        Text="Blacklist"
+        Icon="pan_tool"
+        Path="/blacklist"
+    />
+</RadzenPanelMenu>
+
+@code {
+    List<Channel> channels = new();
+
+    private void SetChannels()
+    {
+        channels = appState.Channels;
+        StateHasChanged();
+    }
+
+    protected override async Task OnInitializedAsync() {
+        appState.OnChange += SetChannels;
+
+        using var context = await channelContext.CreateDbContextAsync();
+        appState.Channels = await context.Channels.ToListAsync();
+    }
+
+    public void Dispose() {
+        appState.OnChange -= SetChannels;
+    }
+}

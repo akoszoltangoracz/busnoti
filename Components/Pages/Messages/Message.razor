@@ -1,0 +1,18 @@
+@rendermode InteractiveServer
+
+@using BusNoti.Models
+
+<RadzenPanel>
+    <div>
+        <RadzenIcon Icon="dataset" />@message.CreatedAt
+        <RadzenBadge Text="@message.Topic" />
+    </div>
+    <div>
+        @message.Content
+    </div>
+</RadzenPanel>
+
+@code {
+    [Parameter]
+    public BusMessage message { get; set ; } = new();
+}

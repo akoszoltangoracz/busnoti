@@ -1,0 +1,71 @@
+@page "/channels"
+@rendermode InteractiveServer
+@using BusNoti.Models
+@using BusNoti.State
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<BusNoti.Contexts.ChannelContext> channelContext
+@inject AppState appState
+@inject NavigationManager navigationManager
+
+<PageTitle>Channels</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H1">Channels</RadzenText>
+<RadzenButton
+    Text="New Channel"
+    Click=@(() => navigationManager.NavigateTo("/channels/new"))
+    Icon="add"
+/>
+
+@foreach(var channel in channels) {
+    <RadzenCard>
+        <RadzenRow>
+            <RadzenColumn Size="10">
+                <RadzenText TextStyle="TextStyle.H5">@channel.Name</RadzenText>
+                @foreach(var type in channel.Types) {
+                    <RadzenBadge Text="@type"/>
+                }
+            </RadzenColumn>
+            <RadzenColumn Size="2">
+                <RadzenButton
+                    Icon="draw"
+                    Click=@(() => navigationManager.NavigateTo($"/channels/{channel.Id}"))
+                >
+                    Edit
+                </RadzenButton>
+                <RadzenButton
+                    Icon="trash"
+                    Click=@(() => DeleteChannelAsync(channel))
+                >
+                    Delete
+                </RadzenButton>
+            </RadzenColumn>
+        </RadzenRow>
+    </RadzenCard>
+}
+
+@code {
+    private List<Channel> channels = new();
+
+    private async Task LoadChannelsAsync()
+    {
+        using var context = await channelContext.CreateDbContextAsync();
+        channels = await context.Channels.ToListAsync();
+        appState.Channels = channels;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadChannelsAsync();
+    }
+
+    private async Task DeleteChannelAsync(Channel channel)
+    {
+        Console.WriteLine($"Deleting channel {channel.Id}");
+        using var context = await channelContext.CreateDbContextAsync();
+
+        context.Remove(channel);
+        await context.SaveChangesAsync();
+        await LoadChannelsAsync();
+    }
+}

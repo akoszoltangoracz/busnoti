@@ -1,0 +1,54 @@
+@page "/channels/{channelId:int}"
+@rendermode InteractiveServer
+@inject IDbContextFactory<BusNoti.Contexts.ChannelContext> channelContext
+@inject NavigationManager navigationManager
+
+@using BusNoti.Utils
+@using BusNoti.Models
+@using Microsoft.EntityFrameworkCore
+
+@if (channel == null) {
+    <div>Loading...</div>
+} else {
+    <RadzenText TextStyle="TextStyle.H2">@channel.Name</RadzenText>
+    <div>
+        <RadzenText>Name</RadzenText>
+        <RadzenTextBox @bind-Value="model.Name" />
+    </div>
+
+    <div>
+        <RadzenText>Types (separated by spaces)</RadzenText>
+        <RadzenTextBox @bind-Value="model.TypesString" />
+    </div>
+
+    <RadzenButton Click="UpdateChannel">Update Channel</RadzenButton>
+}
+
+@code {
+    [Parameter]
+    public int channelId { get; set; }
+    private ChannelFormModel model { get; set; } = new();
+    private Channel? channel { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = await channelContext.CreateDbContextAsync();
+        channel = await context.Channels.FindAsync(channelId);
+        model.Types = channel!.Types;
+        model.Name = channel!.Name;
+    }
+
+    private async Task UpdateChannel()
+    {
+        using var context = await channelContext.CreateDbContextAsync();
+        channel = channel with {
+            Name = model.Name,
+            Types = model.Types,
+        };
+
+        context.Entry(channel).State = EntityState.Modified;
+        await context.SaveChangesAsync();
+
+        navigationManager.NavigateTo("/channels");
+    }
+}

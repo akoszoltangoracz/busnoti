@@ -1,0 +1,78 @@
+@page "/messages/{ChannelId}"
+
+@implements IDisposable
+@rendermode InteractiveServer
+
+@using BusNoti.Models
+@using Microsoft.EntityFrameworkCore
+@using BusNoti.State
+
+@inject NavigationManager Navigation
+@inject AppState appState
+@inject MessageState messageState
+@inject IDbContextFactory<BusNoti.Contexts.ChannelContext> channelContext
+@inject IJSRuntime JS
+
+@if(currentChannel != null) {
+    <h2>@currentChannel.Name</h2>
+}
+
+<RadzenButton Click="LoadOlder">⏫ Old messages ⏫</RadzenButton>
+
+@foreach(var message in messages) {
+    <Message message="message" />
+}
+<div id = "bottom" />
+
+@code {
+    private List<BusMessage> messages = new();
+    private Channel? currentChannel;
+
+    [Parameter]
+    public string ChannelId { get; set; } = string.Empty;
+    private ElementReference BottomRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        messageState.OnMessage += processNewMessage;
+
+        using var context = await channelContext.CreateDbContextAsync();
+        currentChannel = await context.Channels.FindAsync(Convert.ToInt32(ChannelId));
+
+        await LoadOlder();
+    }
+
+    public void Dispose()
+    {
+        messageState.OnMessage -= processNewMessage;
+    }
+
+    private void processNewMessage(BusMessageEvent e)
+    {
+        var message = e.BusMessage!;
+        if (currentChannel.Types.Contains(message.Topic))
+        {
+            messages.Add(message);
+            InvokeAsync(StateHasChanged);
+            JS.InvokeVoidAsync("scrollToBottom");
+        }
+    }
+
+    private async Task LoadOlder()
+    {
+        using var context = await channelContext.CreateDbContextAsync();
+        var limitDate = (messages.Count != 0) ? messages[0].CreatedAt : DateTime.UtcNow;
+
+        var results = await (from message in context.BusMessages
+            where message.CreatedAt < limitDate
+            where currentChannel != null && currentChannel.Types.Contains(message.Topic)
+            orderby message.CreatedAt descending
+            select message)
+            .Take(10)
+            .Reverse()
+            .ToListAsync();
+
+        // messages = results.Concat(messages).ToList();
+        messages = [.. results, ..messages];
+    }
+}
